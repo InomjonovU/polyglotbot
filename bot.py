@@ -5,7 +5,7 @@ import os
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode, ChatMemberStatus
-from aiogram.filters import CommandStart, ChatMemberUpdatedFilter, IS_NOT_MEMBER, IS_MEMBER, MEMBER
+from aiogram.filters import CommandStart, ChatMemberUpdatedFilter, IS_NOT_MEMBER, MEMBER
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
@@ -180,21 +180,10 @@ async def is_channel_event(event: ChatMemberUpdated) -> bool:
     return False
 
 
-async def sync_referrals_status(bot_instance: Bot, referrer_id: int):
-    """Check each referral's channel membership and update is_active accordingly."""
-    referrals = await db.get_referrals(referrer_id)
-    for ref in referrals:
-        unsub = await check_all_channels(bot_instance, ref["user_id"])
-        if unsub and ref["is_active"]:
-            await db.deactivate_user(ref["user_id"])
-        elif not unsub and not ref["is_active"]:
-            await db.activate_user(ref["user_id"])
-
-
 # ── Channel member tracking ───────────────────────────────────
 
 
-@router.chat_member(ChatMemberUpdatedFilter(member_status_changed=IS_MEMBER >> IS_NOT_MEMBER))
+@router.chat_member(ChatMemberUpdatedFilter(member_status_changed=MEMBER >> IS_NOT_MEMBER))
 async def on_user_left_channel(event: ChatMemberUpdated):
     if not await is_channel_event(event):
         return
@@ -219,7 +208,7 @@ async def on_user_left_channel(event: ChatMemberUpdated):
             pass
 
 
-@router.chat_member(ChatMemberUpdatedFilter(member_status_changed=IS_NOT_MEMBER >> IS_MEMBER))
+@router.chat_member(ChatMemberUpdatedFilter(member_status_changed=IS_NOT_MEMBER >> MEMBER))
 async def on_user_joined_channel(event: ChatMemberUpdated):
     if not await is_channel_event(event):
         return
@@ -420,10 +409,6 @@ async def my_referrals(message: Message):
         return
 
     user_id = message.from_user.id
-
-    # Sync referral statuses with actual channel membership
-    await sync_referrals_status(message.bot, user_id)
-
     bot_info = await message.bot.get_me()
     ref_link = f"https://t.me/{bot_info.username}?start=ref_{user_id}"
     ref_count = await db.get_referral_count(user_id)
