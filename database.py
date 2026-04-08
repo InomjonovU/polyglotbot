@@ -144,7 +144,7 @@ async def get_referrals(user_id: int) -> list:
     try:
         db.row_factory = aiosqlite.Row
         cursor = await db.execute(
-            """SELECT first_name, last_name, registered_at, is_active
+            """SELECT user_id, first_name, last_name, registered_at, is_active
                FROM users
                WHERE referred_by = ? AND is_registered = 1
                ORDER BY registered_at DESC""",
